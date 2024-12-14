@@ -13,7 +13,6 @@ export default function Members() {
   const [expandedMember, setExpandedMember] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
 
-  // Fetch members data with proper typing
   const { data: members, isLoading } = useQuery<Member[]>({
     queryKey: ['members'],
     queryFn: async () => {
@@ -29,11 +28,10 @@ export default function Members() {
       }
       
       console.log('Fetched members:', data);
-      return data as Member[];
+      return data;
     }
   });
 
-  // Filter members based on search term
   const filteredMembers = members?.filter(member => 
     member.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.member_number.toLowerCase().includes(searchTerm.toLowerCase())

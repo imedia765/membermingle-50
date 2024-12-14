@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileJson } from "lucide-react";
+import { FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { transformMemberForSupabase, transformCollectorForSupabase } from "@/utils/dataCleanup";
 import { supabase } from "@/integrations/supabase/client";
 import { ImportStatus } from "./ImportStatus";
-import { validateJsonData, ImportData } from "@/utils/importValidation";
+import { importMembersFromCsv } from "@/utils/csvImport";
 
 export function ImportSection() {
   const { toast } = useToast();
@@ -14,12 +14,10 @@ export function ImportSection() {
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -29,7 +27,7 @@ export function ImportSection() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const processCollectors = async (validData: ImportData[]) => {
+  const processCollectors = async (validData: any[]) => {
     const uniqueCollectors = [...new Set(validData.map(item => item.collector).filter(Boolean))];
     console.log('Processing collectors:', uniqueCollectors);
     
@@ -76,7 +74,7 @@ export function ImportSection() {
     return collectorIdMap;
   };
 
-  const processMembers = async (validData: ImportData[], collectorIdMap: Map<string, string>) => {
+  const processMembers = async (validData: any[], collectorIdMap: Map<string, string>) => {
     for (const member of validData) {
       try {
         if (!member.collector) continue;
@@ -93,6 +91,7 @@ export function ImportSection() {
           .insert({
             ...memberData,
             collector_id: collectorId,
+            collector: member.collector,
           });
 
         if (memberError) {
@@ -116,23 +115,15 @@ export function ImportSection() {
 
     setIsImporting(true);
     try {
-      const response = await fetch('/pwadb.json');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch JSON file: ${response.statusText}`);
-      }
+      const data = await importMembersFromCsv('/processed_members.csv');
+      console.log('CSV data loaded:', data);
 
-      const rawData = await response.json();
-      console.log('Raw data:', rawData);
-
-      const validData = validateJsonData(rawData);
-      console.log('Valid data entries:', validData.length);
-
-      const collectorIdMap = await processCollectors(validData);
-      await processMembers(validData, collectorIdMap);
+      const collectorIdMap = await processCollectors(data);
+      await processMembers(data, collectorIdMap);
 
       toast({
         title: "Import successful",
-        description: "Data has been imported into the database",
+        description: "Members have been imported into the database",
       });
     } catch (error) {
       console.error('Import error:', error);
@@ -154,7 +145,7 @@ export function ImportSection() {
       <CardContent className="space-y-4">
         <ImportStatus isAuthenticated={!!session} />
         <p className="text-sm text-muted-foreground">
-          Import member and collector data from pwadb.json file into the database.
+          Import member data from processed_members.csv file into the database.
           This will create new records and update existing ones.
         </p>
         <Button 
@@ -162,8 +153,8 @@ export function ImportSection() {
           disabled={isImporting || !session}
           className="w-full flex items-center gap-2"
         >
-          <FileJson className="h-4 w-4" />
-          {isImporting ? "Importing..." : "Import Data"}
+          <FileSpreadsheet className="h-4 w-4" />
+          {isImporting ? "Importing..." : "Import Members"}
         </Button>
       </CardContent>
     </Card>

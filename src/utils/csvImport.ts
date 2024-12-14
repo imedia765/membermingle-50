@@ -1,5 +1,4 @@
 import Papa from 'papaparse';
-import { transformMemberForSupabase, transformCollectorForSupabase } from './dataCleanup';
 
 export async function importMembersFromCsv(file: string) {
   try {
@@ -10,6 +9,13 @@ export async function importMembersFromCsv(file: string) {
       Papa.parse(csvText, {
         header: true,
         skipEmptyLines: true,
+        transformHeader: (header) => {
+          // Clean up header names
+          return header
+            .replace(/^Unknown Author.*Author:\s*/, '') // Remove prefix
+            .replace(/\n/g, ' ') // Replace newlines with spaces
+            .trim(); // Remove extra whitespace
+        },
         complete: (results) => {
           console.log('Parsed CSV data:', results.data);
           resolve(results.data);

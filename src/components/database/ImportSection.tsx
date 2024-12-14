@@ -8,6 +8,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { ImportStatus } from "./ImportStatus";
 import { importMembersFromCsv } from "@/utils/csvImport";
 
+interface CsvData {
+  collector: string;
+  [key: string]: any;
+}
+
 export function ImportSection() {
   const { toast } = useToast();
   const [isImporting, setIsImporting] = useState(false);
@@ -27,7 +32,7 @@ export function ImportSection() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const processCollectors = async (validData: any[]) => {
+  const processCollectors = async (validData: CsvData[]) => {
     const uniqueCollectors = [...new Set(validData.map(item => item.collector).filter(Boolean))];
     console.log('Processing collectors:', uniqueCollectors);
     
@@ -74,7 +79,7 @@ export function ImportSection() {
     return collectorIdMap;
   };
 
-  const processMembers = async (validData: any[], collectorIdMap: Map<string, string>) => {
+  const processMembers = async (validData: CsvData[], collectorIdMap: Map<string, string>) => {
     for (const member of validData) {
       try {
         if (!member.collector) continue;
@@ -115,7 +120,14 @@ export function ImportSection() {
 
     setIsImporting(true);
     try {
-      const data = await importMembersFromCsv('/processed_members.csv');
+      const result = await importMembersFromCsv('/processed_members.csv');
+      
+      // Type check and cast the result
+      if (!Array.isArray(result)) {
+        throw new Error('Invalid CSV data format');
+      }
+      
+      const data = result as CsvData[];
       console.log('CSV data loaded:', data);
 
       const collectorIdMap = await processCollectors(data);

@@ -131,6 +131,7 @@ export type Database = {
       members: {
         Row: {
           address: string | null
+          collector: string | null
           collector_id: string | null
           created_at: string
           date_of_birth: string | null
@@ -150,6 +151,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          collector?: string | null
           collector_id?: string | null
           created_at?: string
           date_of_birth?: string | null
@@ -169,6 +171,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          collector?: string | null
           collector_id?: string | null
           created_at?: string
           date_of_birth?: string | null

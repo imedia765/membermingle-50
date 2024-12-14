@@ -133,6 +133,7 @@ export type Database = {
           address: string | null
           collector: string | null
           collector_id: string | null
+          cors_enabled: boolean | null
           created_at: string
           date_of_birth: string | null
           email: string | null
@@ -153,6 +154,7 @@ export type Database = {
           address?: string | null
           collector?: string | null
           collector_id?: string | null
+          cors_enabled?: boolean | null
           created_at?: string
           date_of_birth?: string | null
           email?: string | null
@@ -173,6 +175,7 @@ export type Database = {
           address?: string | null
           collector?: string | null
           collector_id?: string | null
+          cors_enabled?: boolean | null
           created_at?: string
           date_of_birth?: string | null
           email?: string | null

@@ -24,6 +24,7 @@ export function ImportSection() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsAuthenticated(!!session);
+      console.log("Initial auth check:", { isAuthenticated: !!session, userId: session?.user?.id });
     });
 
     // Listen for auth changes
@@ -32,11 +33,10 @@ export function ImportSection() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setIsAuthenticated(!!session);
-      
-      // Log authentication state for debugging
       console.log("Auth state changed:", { 
         isAuthenticated: !!session,
-        userId: session?.user?.id
+        userId: session?.user?.id,
+        event: _event
       });
     });
 
@@ -44,8 +44,8 @@ export function ImportSection() {
   }, []);
 
   const processCollectors = async (validData: CsvData[]) => {
-    if (!isAuthenticated) {
-      console.error("User not authenticated");
+    if (!session?.user?.id) {
+      console.error("No authenticated user");
       throw new Error("Authentication required");
     }
 
@@ -82,8 +82,10 @@ export function ImportSection() {
           }
 
           collectorId = newCollector.id;
+          console.log('Created new collector:', { id: collectorId, name: collectorName });
         } else {
           collectorId = existingCollectors[0].id;
+          console.log('Using existing collector:', { id: collectorId, name: collectorName });
         }
 
         collectorIdMap.set(collectorName, collectorId);
@@ -96,8 +98,8 @@ export function ImportSection() {
   };
 
   const processMembers = async (validData: CsvData[], collectorIdMap: Map<string, string>) => {
-    if (!isAuthenticated) {
-      console.error("User not authenticated");
+    if (!session?.user?.id) {
+      console.error("No authenticated user");
       throw new Error("Authentication required");
     }
 

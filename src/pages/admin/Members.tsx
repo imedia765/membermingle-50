@@ -1,29 +1,28 @@
 import { useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   ChevronDown, 
-  ChevronRight, 
-  Search, 
-  UserPlus, 
-  Edit2, 
   MessageSquare, 
   TrashIcon,
   Eye,
   Users,
+  Pencil,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CoveredMembersOverview } from "@/components/members/CoveredMembersOverview";
+import { MembersHeader } from "@/components/members/MembersHeader";
+import { MembersSearch } from "@/components/members/MembersSearch";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
-// Sample data structure with covered members
 const members = [
   { 
     id: 1, 
@@ -57,7 +56,6 @@ export default function Members() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedMember, setExpandedMember] = useState<number | null>(null);
   const [editingNotes, setEditingNotes] = useState<number | null>(null);
-  const [showPayingMembers, setShowPayingMembers] = useState(false);
 
   const toggleMember = (memberId: number) => {
     setExpandedMember(expandedMember === memberId ? null : memberId);
@@ -65,74 +63,9 @@ export default function Members() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
-          Members Management
-        </h1>
-        <Button className="flex items-center gap-2">
-          <UserPlus className="h-4 w-4" />
-          Add Member
-        </Button>
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search members..." 
-            className="pl-8" 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
-
+      <MembersHeader />
+      <MembersSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
       <CoveredMembersOverview members={members} />
-
-      <Card className="mb-4">
-        <CardContent className="pt-6">
-          <Collapsible>
-            <CollapsibleTrigger asChild>
-              <Button 
-                variant="default"
-                className="flex items-center gap-2 w-full justify-between bg-primary hover:bg-primary/90"
-              >
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  <span>Paying Members Overview</span>
-                </div>
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-4">
-              <ScrollArea className="h-[300px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Member Name</TableHead>
-                      <TableHead>Membership No</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last Payment</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {members.map((member) => (
-                      <TableRow key={member.id}>
-                        <TableCell>{member.name}</TableCell>
-                        <TableCell>{member.membershipNo}</TableCell>
-                        <TableCell>{member.status}</TableCell>
-                        <TableCell>
-                          {member.paymentHistory[0]?.date || 'No payments'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            </CollapsibleContent>
-          </Collapsible>
-        </CardContent>
-      </Card>
 
       <ScrollArea className="h-[calc(100vh-220px)]">
         <div className="space-y-4">
@@ -145,11 +78,7 @@ export default function Members() {
                     size="sm"
                     onClick={() => toggleMember(member.id)}
                   >
-                    {expandedMember === member.id ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
+                    <ChevronDown className="h-4 w-4" />
                   </Button>
                   <div>
                     <h3 className="text-lg font-semibold">
@@ -161,8 +90,52 @@ export default function Members() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        <span>Family Members</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                      <DropdownMenuLabel>Covered Members</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {member.coveredMembers?.spouses?.length > 0 && (
+                        <>
+                          <div className="px-2 py-1.5 text-sm font-semibold">Spouse</div>
+                          {member.coveredMembers.spouses.map((spouse, index) => (
+                            <div key={index} className="px-2 py-1.5 text-sm">
+                              {spouse.name}
+                              <div className="text-xs text-muted-foreground">
+                                Born: {spouse.dateOfBirth}
+                              </div>
+                            </div>
+                          ))}
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+                      {member.coveredMembers?.dependants?.length > 0 && (
+                        <>
+                          <div className="px-2 py-1.5 text-sm font-semibold">Dependants</div>
+                          {member.coveredMembers.dependants.map((dependant, index) => (
+                            <div key={index} className="px-2 py-1.5 text-sm">
+                              {dependant.name}
+                              <div className="text-xs text-muted-foreground">
+                                {dependant.relationship} | Born: {dependant.dateOfBirth}
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      {(!member.coveredMembers?.spouses?.length && !member.coveredMembers?.dependants?.length) && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No family members registered
+                        </div>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button variant="outline" size="sm">
-                    <Edit2 className="h-4 w-4" />
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" size="sm">
                     <Eye className="h-4 w-4" />
@@ -174,7 +147,7 @@ export default function Members() {
               </div>
 
               {expandedMember === member.id && (
-                <CardContent className="border-t pt-4">
+                <CardContent className="border-t">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <h4 className="font-semibold mb-2">Contact Information</h4>

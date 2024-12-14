@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, UserPlus } from "lucide-react";
+import { Search } from "lucide-react";
 import { RegistrationCard } from "@/components/registration/RegistrationCard";
+import { RegistrationsHeader } from "@/components/registration/RegistrationsHeader";
 import { Registration } from "@/types/registration";
 
-// Sample data structure
 const registrations: Registration[] = [
   { 
     id: 1, 
@@ -74,15 +73,7 @@ export default function Registrations() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
-          Registration Requests
-        </h1>
-        <Button className="flex items-center gap-2">
-          <UserPlus className="h-4 w-4" />
-          New Registration
-        </Button>
-      </div>
+      <RegistrationsHeader />
 
       <div className="flex items-center space-x-2">
         <div className="relative flex-1">

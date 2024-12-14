@@ -6,14 +6,14 @@ import { AddExpenseDialog } from "./AddExpenseDialog";
 
 export function FinanceHeader() {
   return (
-    <div className="flex justify-between items-center mb-6">
+    <div className="flex flex-col space-y-4">
       <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
         Financial Overview
       </h1>
-      <div className="space-x-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <Dialog>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full">
               <Plus className="mr-2 h-4 w-4" />
               Add Payment
             </Button>
@@ -23,7 +23,7 @@ export function FinanceHeader() {
 
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="outline">
+            <Button variant="outline" className="w-full">
               <Plus className="mr-2 h-4 w-4" />
               Add Expense
             </Button>

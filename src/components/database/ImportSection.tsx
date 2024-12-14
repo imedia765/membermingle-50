@@ -17,22 +17,38 @@ export function ImportSection() {
   const { toast } = useToast();
   const [isImporting, setIsImporting] = useState(false);
   const [session, setSession] = useState<any>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setIsAuthenticated(!!session);
     });
 
+    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      setIsAuthenticated(!!session);
+      
+      // Log authentication state for debugging
+      console.log("Auth state changed:", { 
+        isAuthenticated: !!session,
+        userId: session?.user?.id
+      });
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const processCollectors = async (validData: CsvData[]) => {
+    if (!isAuthenticated) {
+      console.error("User not authenticated");
+      throw new Error("Authentication required");
+    }
+
     const uniqueCollectors = [...new Set(validData.map(item => item.collector).filter(Boolean))];
     console.log('Processing collectors:', uniqueCollectors);
     
@@ -80,6 +96,13 @@ export function ImportSection() {
   };
 
   const processMembers = async (validData: CsvData[], collectorIdMap: Map<string, string>) => {
+    if (!isAuthenticated) {
+      console.error("User not authenticated");
+      throw new Error("Authentication required");
+    }
+
+    console.log("Processing members with auth status:", isAuthenticated);
+
     for (const member of validData) {
       try {
         if (!member.collector) continue;
@@ -91,6 +114,8 @@ export function ImportSection() {
         }
 
         const memberData = transformMemberForSupabase(member);
+        console.log("Inserting member data:", memberData);
+
         const { error: memberError } = await supabase
           .from('members')
           .insert({
@@ -101,15 +126,17 @@ export function ImportSection() {
 
         if (memberError) {
           console.error('Error inserting member:', memberError);
+          throw memberError;
         }
       } catch (error) {
         console.error('Error processing member:', error);
+        throw error;
       }
     }
   };
 
   const importData = async () => {
-    if (!session) {
+    if (!isAuthenticated) {
       toast({
         title: "Authentication required",
         description: "Please log in to import data",
@@ -122,7 +149,6 @@ export function ImportSection() {
     try {
       const result = await importMembersFromCsv('/processed_members.csv');
       
-      // Type check and cast the result
       if (!Array.isArray(result)) {
         throw new Error('Invalid CSV data format');
       }
@@ -155,14 +181,14 @@ export function ImportSection() {
         <CardTitle>Import Data</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <ImportStatus isAuthenticated={!!session} />
+        <ImportStatus isAuthenticated={isAuthenticated} />
         <p className="text-sm text-muted-foreground">
           Import member data from processed_members.csv file into the database.
           This will create new records and update existing ones.
         </p>
         <Button 
           onClick={importData} 
-          disabled={isImporting || !session}
+          disabled={isImporting || !isAuthenticated}
           className="w-full flex items-center gap-2"
         >
           <FileSpreadsheet className="h-4 w-4" />

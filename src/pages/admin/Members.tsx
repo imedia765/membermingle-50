@@ -6,14 +6,15 @@ import { MembersHeader } from "@/components/members/MembersHeader";
 import { MembersSearch } from "@/components/members/MembersSearch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CoveredMembersOverview } from "@/components/members/CoveredMembersOverview";
+import type { Member } from "@/components/members/types";
 
 export default function Members() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedMember, setExpandedMember] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
 
-  // Fetch members data
-  const { data: members, isLoading } = useQuery({
+  // Fetch members data with proper typing
+  const { data: members, isLoading } = useQuery<Member[]>({
     queryKey: ['members'],
     queryFn: async () => {
       console.log('Fetching members...');
@@ -28,7 +29,7 @@ export default function Members() {
       }
       
       console.log('Fetched members:', data);
-      return data;
+      return data as Member[];
     }
   });
 

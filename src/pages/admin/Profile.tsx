@@ -8,6 +8,13 @@ import { SupportSection } from "@/components/profile/SupportSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 
+interface Payment {
+  date: string;
+  amount: string;
+  status: string;
+  type: string;
+}
+
 export default function Profile() {
   const [searchDate, setSearchDate] = useState("");
   const [searchAmount, setSearchAmount] = useState("");
@@ -20,6 +27,7 @@ export default function Profile() {
       const { data, error } = await supabase
         .from('members')
         .select('*')
+        .limit(1)
         .single();
 
       if (error) {
@@ -36,7 +44,7 @@ export default function Profile() {
   });
 
   // Fetch payment history
-  const { data: payments, isLoading: paymentsLoading } = useQuery({
+  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
     queryKey: ['member-payments'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -53,7 +61,13 @@ export default function Profile() {
         throw error;
       }
 
-      return data || [];
+      // Transform the data to match the Payment interface
+      return (data || []).map(payment => ({
+        date: payment.payment_date,
+        amount: payment.amount.toString(),
+        status: payment.status,
+        type: payment.payment_type
+      }));
     },
   });
 
@@ -85,11 +99,11 @@ export default function Profile() {
     );
   }
 
-  const filteredPayments = payments?.filter(payment => {
-    const matchesDate = searchDate ? payment.payment_date.includes(searchDate) : true;
-    const matchesAmount = searchAmount ? payment.amount.toString().includes(searchAmount) : true;
+  const filteredPayments = paymentsData?.filter(payment => {
+    const matchesDate = searchDate ? payment.date.includes(searchDate) : true;
+    const matchesAmount = searchAmount ? payment.amount.includes(searchAmount) : true;
     return matchesDate && matchesAmount;
-  });
+  }) || [];
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -104,7 +118,7 @@ export default function Profile() {
           documentTypes={documentTypes}
         />
         <PaymentHistorySection 
-          payments={filteredPayments || []}
+          payments={filteredPayments}
           searchDate={searchDate}
           searchAmount={searchAmount}
           onSearchDateChange={setSearchDate}

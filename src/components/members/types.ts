@@ -2,7 +2,6 @@ export interface Member {
   id: string;
   member_number: string;
   collector_id: string | null;
-  collector?: string | null;
   full_name: string;
   date_of_birth: string | null;
   gender: string | null;
@@ -17,5 +16,6 @@ export interface Member {
   created_at: string;
   updated_at: string;
   membership_type: string | null;
+  collector: string | null;
   cors_enabled: boolean | null;
 }

@@ -1,42 +1,39 @@
 import { supabase } from "@/integrations/supabase/client";
 import { saveAs } from 'file-saver';
 
+const TABLES = [
+  'members',
+  'collectors',
+  'payments',
+  'family_members',
+  'registrations',
+  'support_tickets',
+  'ticket_responses',
+  'admin_notes'
+] as const;
+
+type TableName = typeof TABLES[number];
+
 export async function exportDatabase() {
   try {
-    // Fetch data from all tables
-    const [
-      membersResult,
-      collectorsResult,
-      paymentsResult,
-      familyMembersResult,
-      registrationsResult,
-      supportTicketsResult,
-      ticketResponsesResult,
-      adminNotesResult
-    ] = await Promise.all([
-      supabase.from('members').select('*'),
-      supabase.from('collectors').select('*'),
-      supabase.from('payments').select('*'),
-      supabase.from('family_members').select('*'),
-      supabase.from('registrations').select('*'),
-      supabase.from('support_tickets').select('*'),
-      supabase.from('ticket_responses').select('*'),
-      supabase.from('admin_notes').select('*')
-    ]);
+    const results = await Promise.all(
+      TABLES.map(table => 
+        supabase.from(table).select('*')
+      )
+    );
 
     const backupData = {
-      members: membersResult.data,
-      collectors: collectorsResult.data,
-      payments: paymentsResult.data,
-      familyMembers: familyMembersResult.data,
-      registrations: registrationsResult.data,
-      supportTickets: supportTicketsResult.data,
-      ticketResponses: ticketResponsesResult.data,
-      adminNotes: adminNotesResult.data,
+      members: results[0].data,
+      collectors: results[1].data,
+      payments: results[2].data,
+      familyMembers: results[3].data,
+      registrations: results[4].data,
+      supportTickets: results[5].data,
+      ticketResponses: results[6].data,
+      adminNotes: results[7].data,
       timestamp: new Date().toISOString()
     };
 
-    // Create and download backup file
     const blob = new Blob([JSON.stringify(backupData, null, 2)], {
       type: 'application/json'
     });
@@ -54,31 +51,38 @@ export async function restoreDatabase(backupFile: File) {
     const fileContent = await backupFile.text();
     const backupData = JSON.parse(fileContent);
 
-    // Validate backup data structure
     if (!backupData.timestamp || !backupData.members) {
       throw new Error('Invalid backup file format');
     }
 
-    // Clear existing data and restore from backup
-    for (const [table, data] of Object.entries(backupData)) {
-      if (table === 'timestamp') continue;
+    const tableMap: Record<string, TableName> = {
+      members: 'members',
+      collectors: 'collectors',
+      payments: 'payments',
+      familyMembers: 'family_members',
+      registrations: 'registrations',
+      supportTickets: 'support_tickets',
+      ticketResponses: 'ticket_responses',
+      adminNotes: 'admin_notes'
+    };
+
+    for (const [key, table] of Object.entries(tableMap)) {
+      const data = backupData[key];
       
       if (Array.isArray(data)) {
-        // Delete existing records
         const { error: deleteError } = await supabase
-          .from(table.toLowerCase())
+          .from(table)
           .delete()
-          .neq('id', 'placeholder'); // Delete all records
+          .neq('id', 'placeholder');
 
         if (deleteError) {
           console.error(`Error clearing ${table}:`, deleteError);
           throw deleteError;
         }
 
-        // Insert backup data
         if (data.length > 0) {
           const { error: insertError } = await supabase
-            .from(table.toLowerCase())
+            .from(table)
             .insert(data);
 
           if (insertError) {

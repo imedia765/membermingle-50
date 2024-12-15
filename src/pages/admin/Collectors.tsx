@@ -16,15 +16,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { importDataFromJson } from "@/utils/importData";
+import { EditCollectorDialog } from "@/components/collectors/EditCollectorDialog";
 
 export default function Collectors() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCollector, setExpandedCollector] = useState<string | null>(null);
+  const [editingCollector, setEditingCollector] = useState<{ id: string; name: string } | null>(null);
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
   // Fetch collectors data
-  const { data: collectors, isLoading } = useQuery({
+  const { data: collectors, isLoading, refetch } = useQuery({
     queryKey: ['collectors'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -76,6 +78,7 @@ export default function Collectors() {
         title: "Collector deleted",
         description: "The collector has been removed successfully.",
       });
+      refetch();
     }
   };
 
@@ -96,6 +99,7 @@ export default function Collectors() {
         title: "Collector activated",
         description: "The collector has been activated successfully.",
       });
+      refetch();
     }
   };
 
@@ -116,7 +120,12 @@ export default function Collectors() {
         title: "Collector deactivated",
         description: "The collector has been deactivated successfully.",
       });
+      refetch();
     }
+  };
+
+  const handleEditCollector = (collector: { id: string; name: string }) => {
+    setEditingCollector(collector);
   };
 
   const filteredCollectors = collectors?.filter(collector =>
@@ -195,14 +204,14 @@ export default function Collectors() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={() => handleEditCollector(collector)} className="gap-2">
+                        <Edit2 className="h-4 w-4" /> Edit Name
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleActivateCollector(collector.id)} className="gap-2">
                         <UserCheck className="h-4 w-4" /> Activate
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleDeactivateCollector(collector.id)} className="gap-2">
                         <Ban className="h-4 w-4" /> Deactivate
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2">
-                        <Edit2 className="h-4 w-4" /> Edit Details
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleDeleteCollector(collector.id)} className="gap-2 text-red-600">
                         <Trash2 className="h-4 w-4" /> Delete
@@ -243,6 +252,15 @@ export default function Collectors() {
           ))}
         </div>
       </ScrollArea>
+
+      {editingCollector && (
+        <EditCollectorDialog
+          isOpen={true}
+          onClose={() => setEditingCollector(null)}
+          collector={editingCollector}
+          onUpdate={refetch}
+        />
+      )}
     </div>
   );
 }

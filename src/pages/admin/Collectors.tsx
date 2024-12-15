@@ -1,31 +1,20 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, UserPlus, ChevronDown, ChevronRight, Edit2, Trash2, UserCheck, Ban } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search, UserPlus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { importDataFromJson } from "@/utils/importData";
 import { EditCollectorDialog } from "@/components/collectors/EditCollectorDialog";
+import { CollectorList } from "@/components/collectors/CollectorList";
 
 export default function Collectors() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCollector, setExpandedCollector] = useState<string | null>(null);
   const [editingCollector, setEditingCollector] = useState<{ id: string; name: string } | null>(null);
   const { toast } = useToast();
-  const isMobile = useIsMobile();
 
-  // Fetch collectors data
   const { data: collectors, isLoading, refetch } = useQuery({
     queryKey: ['collectors'],
     queryFn: async () => {
@@ -61,78 +50,6 @@ export default function Collectors() {
     }
   };
 
-  const handleDeleteCollector = async (collectorId: string) => {
-    const { error } = await supabase
-      .from('collectors')
-      .delete()
-      .eq('id', collectorId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete collector",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Collector deleted",
-        description: "The collector has been removed successfully.",
-      });
-      refetch();
-    }
-  };
-
-  const handleActivateCollector = async (collectorId: string) => {
-    const { error } = await supabase
-      .from('collectors')
-      .update({ active: true })
-      .eq('id', collectorId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to activate collector",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Collector activated",
-        description: "The collector has been activated successfully.",
-      });
-      refetch();
-    }
-  };
-
-  const handleDeactivateCollector = async (collectorId: string) => {
-    const { error } = await supabase
-      .from('collectors')
-      .update({ active: false })
-      .eq('id', collectorId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to deactivate collector",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Collector deactivated",
-        description: "The collector has been deactivated successfully.",
-      });
-      refetch();
-    }
-  };
-
-  const handleEditCollector = (collector: { id: string; name: string }) => {
-    setEditingCollector(collector);
-  };
-
-  const filteredCollectors = collectors?.filter(collector =>
-    collector.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    collector.number.includes(searchTerm)
-  ) ?? [];
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-4">
@@ -166,92 +83,15 @@ export default function Collectors() {
         </div>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-220px)]">
-        <div className="space-y-4">
-          {isLoading ? (
-            <div className="text-center py-4">Loading collectors...</div>
-          ) : filteredCollectors.map((collector) => (
-            <Card key={collector.id}>
-              <CardHeader className="py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleCollector(collector.id)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
-                      title={expandedCollector === collector.id ? "Collapse" : "Expand"}
-                    >
-                      {expandedCollector === collector.id ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <div className="min-w-0">
-                      <CardTitle className="text-xl text-white truncate">
-                        {collector.prefix}{collector.number} - {collector.name}
-                      </CardTitle>
-                      <p className="text-sm text-white">
-                        Members: {collector.members?.length || 0}
-                      </p>
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="ml-4 shrink-0">
-                        Actions <ChevronDown className="ml-2 h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => handleEditCollector(collector)} className="gap-2">
-                        <Edit2 className="h-4 w-4" /> Edit Name
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleActivateCollector(collector.id)} className="gap-2">
-                        <UserCheck className="h-4 w-4" /> Activate
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDeactivateCollector(collector.id)} className="gap-2">
-                        <Ban className="h-4 w-4" /> Deactivate
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDeleteCollector(collector.id)} className="gap-2 text-red-600">
-                        <Trash2 className="h-4 w-4" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </CardHeader>
-              {expandedCollector === collector.id && collector.members && (
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-white">Name</TableHead>
-                          <TableHead className="text-white">Member ID</TableHead>
-                          <TableHead className="text-white">Email</TableHead>
-                          <TableHead className="text-white">Contact Number</TableHead>
-                          <TableHead className="text-white">Address</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {collector.members.map((member) => (
-                          <TableRow key={member.id}>
-                            <TableCell className="text-white">{member.full_name}</TableCell>
-                            <TableCell className="text-white">{member.member_number}</TableCell>
-                            <TableCell className="text-white">{member.email}</TableCell>
-                            <TableCell className="text-white">{member.phone}</TableCell>
-                            <TableCell className="text-white">{member.address}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          ))}
-        </div>
-      </ScrollArea>
+      <CollectorList
+        collectors={collectors || []}
+        expandedCollector={expandedCollector}
+        onToggleCollector={toggleCollector}
+        onEditCollector={setEditingCollector}
+        onUpdate={refetch}
+        isLoading={isLoading}
+        searchTerm={searchTerm}
+      />
 
       {editingCollector && (
         <EditCollectorDialog

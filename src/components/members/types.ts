@@ -1,21 +1,21 @@
 export interface Member {
   id: string;
   member_number: string;
-  collector_id?: string;
+  collector_id: string | null;
+  collector?: string | null;
   full_name: string;
-  date_of_birth?: string;
-  gender?: string;
-  marital_status?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  postcode?: string;
-  town?: string;
-  status?: string;
-  verified?: boolean;
+  date_of_birth: string | null;
+  gender: string | null;
+  marital_status: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  postcode: string | null;
+  town: string | null;
+  status: string | null;
+  verified: boolean | null;
   created_at: string;
   updated_at: string;
-  membership_type?: string;
-  collector?: string;
-  cors_enabled?: boolean;
+  membership_type: string | null;
+  cors_enabled: boolean | null;
 }

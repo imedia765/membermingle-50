@@ -1,64 +1,48 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { NavigationMenu } from "@/components/NavigationMenu";
-import Footer from "@/components/Footer";
-import Index from "./pages/Index";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { Routes, Route } from "react-router-dom";
+import { NavigationMenu } from "./components/NavigationMenu";
+import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import TermsAndConditions from "./pages/TermsAndConditions";
-import CollectorResponsibilities from "./pages/CollectorResponsibilities";
-import MedicalExaminerProcess from "./pages/MedicalExaminerProcess";
-import { AdminLayout } from "./components/AdminLayout";
-import Dashboard from "./pages/admin/Dashboard";
+import Admin from "./pages/Admin";
+import Profile from "./pages/Profile";
+import Support from "./pages/Support";
+import Finance from "./pages/Finance";
 import Members from "./pages/admin/Members";
 import Collectors from "./pages/admin/Collectors";
-import Registrations from "./pages/admin/Registrations";
-import Database from "./pages/admin/Database";
-import Finance from "./pages/admin/Finance";
-import Support from "./pages/admin/Support";
-import Profile from "./pages/admin/Profile";
+import "./App.css";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="system" enableSystem>
         <BrowserRouter>
-          <div className="min-h-screen flex flex-col">
+          <div className="min-h-screen">
             <NavigationMenu />
-            <div className="flex-grow">
+            <main className="container py-6">
               <Routes>
-                <Route path="/" element={<Index />} />
+                <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/terms" element={<TermsAndConditions />} />
-                <Route path="/collector-responsibilities" element={<CollectorResponsibilities />} />
-                <Route path="/medical-examiner-process" element={<MedicalExaminerProcess />} />
-                <Route path="/admin" element={<AdminLayout />}>
-                  <Route index element={<Dashboard />} />
-                  <Route path="members" element={<Members />} />
-                  <Route path="collectors" element={<Collectors />} />
-                  <Route path="registrations" element={<Registrations />} />
-                  <Route path="database" element={<Database />} />
-                  <Route path="finance" element={<Finance />} />
-                  <Route path="support" element={<Support />} />
-                  <Route path="profile" element={<Profile />} />
-                </Route>
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/admin/members" element={<Members />} />
+                <Route path="/admin/collectors" element={<Collectors />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/support" element={<Support />} />
+                <Route path="/finance" element={<Finance />} />
               </Routes>
-            </div>
-            <Footer />
+            </main>
           </div>
         </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
+        <Toaster />
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

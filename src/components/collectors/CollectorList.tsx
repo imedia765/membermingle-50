@@ -50,6 +50,7 @@ export function CollectorList({
           <CollectorCard
             key={collector.id}
             collector={collector}
+            collectors={collectors}
             expandedCollector={expandedCollector}
             onToggle={onToggleCollector}
             onEdit={onEditCollector}

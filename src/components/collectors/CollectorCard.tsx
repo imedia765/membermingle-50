@@ -6,6 +6,7 @@ import { CollectorActions } from "./CollectorActions";
 
 interface CollectorCardProps {
   collector: any;
+  collectors: any[];
   expandedCollector: string | null;
   onToggle: (id: string) => void;
   onEdit: (collector: { id: string; name: string }) => void;
@@ -14,6 +15,7 @@ interface CollectorCardProps {
 
 export function CollectorCard({ 
   collector, 
+  collectors,
   expandedCollector, 
   onToggle, 
   onEdit,
@@ -50,6 +52,7 @@ export function CollectorCard({
           </div>
           <CollectorActions 
             collector={collector}
+            collectors={collectors}
             onEdit={onEdit}
             onUpdate={onUpdate}
           />

@@ -25,7 +25,7 @@ export default function FirstTimeLogin() {
       // First, check if the member exists and get their details
       const { data: member, error: memberError } = await supabase
         .from('members')
-        .select('email, password_changed, member_number')
+        .select('id, email, password_changed, member_number, auth_user_id')
         .eq('member_number', cleanMemberId)
         .maybeSingle();
 
@@ -43,6 +43,11 @@ export default function FirstTimeLogin() {
         throw new Error("This member has already updated their password. Please use the regular login page.");
       }
 
+      // Check if member already has an auth_user_id
+      if (member.auth_user_id) {
+        throw new Error("This member is already linked to an account. Please use the regular login page.");
+      }
+
       // Verify the password matches the member ID for first-time login
       if (password !== cleanMemberId) {
         throw new Error("For first-time login, your password must be the same as your Member ID.");
@@ -53,7 +58,7 @@ export default function FirstTimeLogin() {
       console.log("Attempting first-time login with:", { email: tempEmail, memberId: cleanMemberId });
 
       // Try to sign up first (in case this is the first time)
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: tempEmail,
         password: cleanMemberId,
         options: {
@@ -69,7 +74,7 @@ export default function FirstTimeLogin() {
       }
 
       // Now try to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: tempEmail,
         password: cleanMemberId
       });
@@ -80,19 +85,24 @@ export default function FirstTimeLogin() {
       }
 
       // Update the member record to link it with the auth user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      if (signInData.user) {
         const { error: updateError } = await supabase
           .from('members')
           .update({
-            auth_user_id: user.id,
+            auth_user_id: signInData.user.id,
             first_time_login: false
           })
-          .eq('member_number', cleanMemberId);
+          .eq('id', member.id);
 
         if (updateError) {
           console.error("Error updating member:", updateError);
+          throw new Error("Failed to link your account. Please contact support.");
         }
+
+        console.log("Successfully linked member to auth user:", {
+          memberId: member.id,
+          authUserId: signInData.user.id
+        });
       }
 
       toast({

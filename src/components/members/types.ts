@@ -19,4 +19,8 @@ export interface Member {
   collector: string | null;
   cors_enabled: boolean | null;
   name?: string; // Added for backward compatibility
+  coveredMembers?: {
+    spouses?: Array<{ name: string; dateOfBirth: string }>;
+    dependants?: Array<{ name: string; dateOfBirth: string; relationship: string }>;
+  };
 }

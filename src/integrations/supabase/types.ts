@@ -51,6 +51,33 @@ export type Database = {
           },
         ]
       }
+      codebase_backups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          download_count: number | null
+          filename: string
+          id: string
+          size: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          download_count?: number | null
+          filename: string
+          id?: string
+          size?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          download_count?: number | null
+          filename?: string
+          id?: string
+          size?: number | null
+        }
+        Relationships: []
+      }
       collectors: {
         Row: {
           active: boolean | null
@@ -84,6 +111,57 @@ export type Database = {
           phone?: string | null
           prefix?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      database_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: string | null
+          id: string
+          performed_by: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          performed_by?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          performed_by?: string | null
+        }
+        Relationships: []
+      }
+      error_logs: {
+        Row: {
+          context: Json | null
+          created_at: string
+          error_message: string
+          id: string
+          stack_trace: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          error_message: string
+          id?: string
+          stack_trace?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          error_message?: string
+          id?: string
+          stack_trace?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -131,20 +209,28 @@ export type Database = {
       members: {
         Row: {
           address: string | null
+          auth_user_id: string | null
           collector: string | null
           collector_id: string | null
           cors_enabled: boolean | null
           created_at: string
           date_of_birth: string | null
+          default_password_hash: string | null
           email: string | null
+          email_verified: boolean | null
+          first_time_login: boolean | null
           full_name: string
           gender: string | null
           id: string
           marital_status: string | null
           member_number: string
           membership_type: string | null
+          password_changed: boolean | null
           phone: string | null
           postcode: string | null
+          profile_completed: boolean | null
+          profile_updated: boolean | null
+          registration_completed: boolean | null
           status: string | null
           town: string | null
           updated_at: string
@@ -152,20 +238,28 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          auth_user_id?: string | null
           collector?: string | null
           collector_id?: string | null
           cors_enabled?: boolean | null
           created_at?: string
           date_of_birth?: string | null
+          default_password_hash?: string | null
           email?: string | null
+          email_verified?: boolean | null
+          first_time_login?: boolean | null
           full_name: string
           gender?: string | null
           id?: string
           marital_status?: string | null
           member_number: string
           membership_type?: string | null
+          password_changed?: boolean | null
           phone?: string | null
           postcode?: string | null
+          profile_completed?: boolean | null
+          profile_updated?: boolean | null
+          registration_completed?: boolean | null
           status?: string | null
           town?: string | null
           updated_at?: string
@@ -173,20 +267,28 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          auth_user_id?: string | null
           collector?: string | null
           collector_id?: string | null
           cors_enabled?: boolean | null
           created_at?: string
           date_of_birth?: string | null
+          default_password_hash?: string | null
           email?: string | null
+          email_verified?: boolean | null
+          first_time_login?: boolean | null
           full_name?: string
           gender?: string | null
           id?: string
           marital_status?: string | null
           member_number?: string
           membership_type?: string | null
+          password_changed?: boolean | null
           phone?: string | null
           postcode?: string | null
+          profile_completed?: boolean | null
+          profile_updated?: boolean | null
+          registration_completed?: boolean | null
           status?: string | null
           town?: string | null
           updated_at?: string
@@ -258,23 +360,56 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           created_at: string
+          date_of_birth: string | null
           email: string | null
+          full_name: string | null
+          gender: string | null
           id: string
+          marital_status: string | null
+          member_number: string | null
+          phone: string | null
+          postcode: string | null
+          profile_completed: boolean | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          town: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          address?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
+          full_name?: string | null
+          gender?: string | null
           id?: string
+          marital_status?: string | null
+          member_number?: string | null
+          phone?: string | null
+          postcode?: string | null
+          profile_completed?: boolean | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          town?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          address?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
+          full_name?: string | null
+          gender?: string | null
           id?: string
+          marital_status?: string | null
+          member_number?: string | null
+          phone?: string | null
+          postcode?: string | null
+          profile_completed?: boolean | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          town?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -400,10 +535,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_profile: {
+        Args: {
+          p_id: string
+          p_email: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      merge_duplicate_collectors: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          merged_count: number
+          details: string
+        }[]
+      }
+      normalize_collector_name: {
+        Args: {
+          name: string
+        }
+        Returns: string
+      }
+      sync_collector_ids: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "member" | "collector" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never

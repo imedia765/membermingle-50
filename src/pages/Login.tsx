@@ -1,275 +1,170 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Icons } from "@/components/ui/icons";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
 
-  useEffect(() => {
-    console.log("Login component mounted - checking session");
-    const checkSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      console.log("Session check result:", { session, error });
-      if (session) {
-        console.log("Active session found, redirecting to admin");
-        navigate("/admin");
-      }
-    };
-    
-    checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", { event, session });
-      if (event === "SIGNED_IN" && session) {
-        console.log("Sign in event detected, redirecting to admin");
-        navigate("/admin");
-      } else if (event === "SIGNED_OUT") {
-        setIsLoggedIn(false);
-      }
-    });
-
-    return () => {
-      console.log("Cleaning up auth subscription");
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
-
-  const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Email login attempt started");
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    setIsLoading(true);
+    const cleanIdentifier = identifier.trim().toUpperCase();
+    console.log("Login attempt with:", { identifier: cleanIdentifier });
 
     try {
-      console.log("Attempting email login for:", email);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      console.log("Email login response:", { data, error });
-
-      if (error) throw error;
-
-      toast({
-        title: "Login successful",
-        description: "Welcome back!",
-      });
-      setIsLoggedIn(true);
-    } catch (error) {
-      console.error("Email login error:", error);
-      toast({
-        title: "Login failed",
-        description: error instanceof Error ? error.message : "An error occurred during login",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleMemberIdSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    console.log("Member ID login attempt started");
-    const formData = new FormData(e.currentTarget);
-    const memberId = formData.get("memberId") as string;
-    const password = formData.get("memberPassword") as string;
-
-    try {
-      // First, look up the member's email using their member ID
-      console.log("Looking up member with ID:", memberId);
-      const { data: memberData, error: memberError } = await supabase
-        .from('members')
-        .select('email')
-        .eq('member_number', memberId)
-        .single();
-
-      console.log("Member lookup result:", { memberData, memberError });
-
-      if (memberError || !memberData?.email) {
-        throw new Error("Member ID not found");
-      }
-
-      // Then sign in with the found email and provided password
-      console.log("Attempting login with member's email");
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: memberData.email,
-        password,
-      });
-
-      console.log("Member ID login response:", { data, error });
-
-      if (error) throw error;
-
-      toast({
-        title: "Login successful",
-        description: "Welcome back!",
-      });
-    } catch (error) {
-      console.error("Member ID login error:", error);
-      toast({
-        title: "Login failed",
-        description: error instanceof Error ? error.message : "Invalid member ID or password",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    console.log("Google login attempt started");
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/admin`,
-        },
-      });
-
-      console.log("Google login response:", { data, error });
-
-      if (error) throw error;
+      // Check if input is an email or member ID
+      const isEmail = cleanIdentifier.includes('@') && !cleanIdentifier.includes('@temp.pwaburton.org');
       
-      // The redirect will happen automatically, but we'll show a loading toast
+      if (isEmail) {
+        // Check if member has updated their password
+        const { data: member } = await supabase
+          .from('members')
+          .select('password_changed, email_verified')
+          .eq('email', cleanIdentifier)
+          .single();
+
+        if (!member?.password_changed) {
+          toast({
+            title: "Password not updated",
+            description: "Please use the 'First Time Login' button below if you haven't changed your password yet.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // Regular email login
+        const { error } = await supabase.auth.signInWithPassword({
+          email: cleanIdentifier,
+          password: password,
+        });
+
+        if (error) throw error;
+
+      } else {
+        // Member ID login - first check if member exists
+        const { data: member, error: memberError } = await supabase
+          .from('members')
+          .select('email, password_changed, member_number')
+          .eq('member_number', cleanIdentifier)
+          .single();
+
+        if (memberError || !member) {
+          throw new Error("Invalid Member ID. Please check your credentials.");
+        }
+
+        // For member ID login, use temporary email format
+        const tempEmail = `${cleanIdentifier.toLowerCase()}@temp.pwaburton.org`;
+        console.log("Attempting login with temp email:", tempEmail);
+
+        const { error } = await supabase.auth.signInWithPassword({
+          email: tempEmail,
+          password: cleanIdentifier // For first time login, password is the same as member ID
+        });
+
+        if (error) {
+          console.error("Login error:", error);
+          if (error.message.includes('Invalid login credentials')) {
+            throw new Error("Invalid Member ID or password. For first-time login, use your Member ID as both username and password.");
+          }
+          throw error;
+        }
+      }
+
       toast({
-        title: "Redirecting to Google",
-        description: "Please wait while we redirect you to Google sign-in...",
+        title: "Login successful",
+        description: "Welcome back!",
       });
+      
+      navigate("/admin/profile");
     } catch (error) {
-      console.error("Google login error:", error);
+      console.error("Login error:", error);
       toast({
         title: "Login failed",
-        description: error instanceof Error ? error.message : "An error occurred during Google login",
+        description: error instanceof Error ? error.message : "Invalid credentials. Please check your email/member ID and password.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-    const handleLogout = async () => {
-        try {
-            await supabase.auth.signOut();
-            setIsLoggedIn(false);
-            toast({
-                title: "Logged out",
-                description: "You have been logged out successfully.",
-            });
-            navigate("/login");
-        } catch (error) {
-            console.error("Logout error:", error);
-            toast({
-                title: "Logout failed",
-                description: error instanceof Error ? error.message : "An error occurred during logout",
-                variant: "destructive",
-            });
-        }
-    };
+  const handleFirstTimeLogin = () => {
+    navigate('/first-time-login');
+  };
 
   return (
-    <div className="container flex items-center justify-center min-h-[calc(100vh-4rem)]">
-      <Card className="w-full max-w-md">
+    <div className="container max-w-lg mx-auto py-10">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl text-center">Login</CardTitle>
         </CardHeader>
-        <CardContent>
-        {isLoggedIn ? (
-            <Button onClick={handleLogout} className="w-full">
-                Logout
+        <CardContent className="space-y-4">
+          <Alert className="bg-blue-50 border-blue-200">
+            <InfoIcon className="h-4 w-4 text-blue-500" />
+            <AlertDescription className="text-sm text-blue-700">
+              Enter your email if you've already updated your profile, or your Member ID if this is your first time logging in.
+            </AlertDescription>
+          </Alert>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                id="identifier"
+                name="identifier"
+                type="text"
+                placeholder="Email or Member ID"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Logging in..." : "Login"}
             </Button>
-        ) : (
-            <>
-          <Button 
-            variant="outline" 
-            className="w-full mb-6 h-12 text-lg bg-white hover:bg-gray-50 border-2 shadow-sm text-gray-700 font-medium" 
-            onClick={handleGoogleLogin}
-          >
-            <Icons.google className="mr-2 h-5 w-5 [&>path]:fill-[#4285F4]" />
-            Continue with Google
-          </Button>
-          
-          <div className="relative mb-6">
+          </form>
+
+          <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
+                First time here?
               </span>
             </div>
           </div>
 
-          <Tabs defaultValue="email" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="email">Email</TabsTrigger>
-              <TabsTrigger value="memberId">Member ID</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="email">
-              <form onSubmit={handleEmailSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="Email"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="Password"
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full">
-                  Login with Email
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="memberId">
-              <form onSubmit={handleMemberIdSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Input
-                    id="memberId"
-                    name="memberId"
-                    type="text"
-                    placeholder="Member ID"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Input
-                    id="memberPassword"
-                    name="memberPassword"
-                    type="password"
-                    placeholder="Password"
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full">
-                  Login with Member ID
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-
-          <div className="text-center text-sm mt-6">
-            Don't have an account?{" "}
-            <Link to="/register" className="text-primary hover:underline">
-              Register here
-            </Link>
-          </div>
-          </>
-        )}
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleFirstTimeLogin}
+          >
+            First Time Login
+          </Button>
         </CardContent>
       </Card>
     </div>

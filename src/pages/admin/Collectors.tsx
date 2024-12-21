@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, UserPlus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { importDataFromJson } from "@/utils/importData";
 import { EditCollectorDialog } from "@/components/collectors/EditCollectorDialog";
 import { CollectorList } from "@/components/collectors/CollectorList";
+import { CollectorHeader } from "@/components/collectors/CollectorHeader";
+import { CollectorSearch } from "@/components/collectors/CollectorSearch";
+import { PrintTemplate } from "@/components/collectors/PrintTemplate";
 
 export default function Collectors() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -18,75 +17,86 @@ export default function Collectors() {
   const { data: collectors, isLoading, refetch } = useQuery({
     queryKey: ['collectors'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('collectors')
-        .select(`
-          *,
-          members:members(*)
-        `);
+      console.log('Starting collectors fetch process...');
       
-      if (error) throw error;
-      return data;
+      // First, get all collectors
+      const { data: collectorsData, error: collectorsError } = await supabase
+        .from('collectors')
+        .select('*')
+        .order('name');
+
+      if (collectorsError) {
+        console.error('Error fetching collectors:', collectorsError);
+        throw collectorsError;
+      }
+
+      // Then, get all members
+      const { data: membersData, error: membersError } = await supabase
+        .from('members')
+        .select('*')
+        .order('full_name');
+
+      if (membersError) {
+        console.error('Error fetching members:', membersError);
+        throw membersError;
+      }
+
+      // Helper function to normalize collector names for comparison
+      const normalizeCollectorName = (name: string) => {
+        if (!name) return '';
+        return name.toLowerCase()
+          .replace(/[\/&,.-]/g, '') // Remove special characters
+          .replace(/\s+/g, '')      // Remove all whitespace
+          .trim();
+      };
+
+      // Map members to their collectors using normalized name matching
+      const enhancedCollectorsData = collectorsData.map(collector => {
+        const collectorMembers = membersData.filter(member => {
+          if (!member.collector) return false;
+          
+          const normalizedCollectorName = normalizeCollectorName(collector.name);
+          const normalizedMemberCollector = normalizeCollectorName(member.collector);
+          
+          return normalizedCollectorName === normalizedMemberCollector;
+        });
+
+        return {
+          ...collector,
+          members: collectorMembers
+        };
+      });
+
+      return enhancedCollectorsData;
     }
   });
 
-  const toggleCollector = (collectorId: string) => {
-    setExpandedCollector(expandedCollector === collectorId ? null : collectorId);
-  };
-
-  const handleImportData = async () => {
-    const result = await importDataFromJson();
-    if (result.success) {
-      toast({
-        title: "Data imported successfully",
-        description: "The collectors and members data has been imported.",
-      });
-    } else {
-      toast({
-        title: "Import failed",
-        description: "There was an error importing the data.",
-        variant: "destructive",
-      });
+  const handlePrintAll = () => {
+    const printContent = PrintTemplate({ collectors });
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col space-y-4">
-        <h1 className="text-4xl font-bold text-white">
-          Collectors Management
-        </h1>
-        <div className="flex flex-wrap gap-2">
-          <Button 
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => handleImportData()}
-          >
-            <UserPlus className="h-4 w-4" />
-            Import Data
-          </Button>
-          <Button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-            <UserPlus className="h-4 w-4" />
-            Add New Collector
-          </Button>
-        </div>
-      </div>
+      <CollectorHeader 
+        onPrintAll={handlePrintAll}
+        onUpdate={refetch}
+      />
 
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search by collector name or number..." 
-            className="pl-8" 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
+      <CollectorSearch 
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+      />
 
       <CollectorList
         collectors={collectors || []}
         expandedCollector={expandedCollector}
-        onToggleCollector={toggleCollector}
+        onToggleCollector={setExpandedCollector}
         onEditCollector={setEditingCollector}
         onUpdate={refetch}
         isLoading={isLoading}

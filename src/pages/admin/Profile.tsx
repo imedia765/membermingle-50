@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountSettingsSection } from "@/components/profile/AccountSettingsSection";
@@ -7,67 +7,97 @@ import { PaymentHistorySection } from "@/components/profile/PaymentHistorySectio
 import { SupportSection } from "@/components/profile/SupportSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
-
-interface Payment {
-  date: string;
-  amount: string;
-  status: string;
-  type: string;
-}
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
   const [searchDate, setSearchDate] = useState("");
   const [searchAmount, setSearchAmount] = useState("");
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  // Check authentication and get user email
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+      console.log("Current session:", session);
+      setUserEmail(session.user.email);
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/login");
+      } else {
+        console.log("Auth state changed:", event, session);
+        setUserEmail(session.user.email);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   // Fetch member profile data
   const { data: memberData, isLoading: memberLoading } = useQuery({
-    queryKey: ['member-profile'],
+    queryKey: ['member-profile', userEmail],
+    enabled: !!userEmail,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('members')
-        .select('*')
-        .limit(1)
-        .single();
+      console.log('Fetching profile for email:', userEmail);
+      
+      try {
+        const { data, error } = await supabase
+          .from('members')
+          .select(`
+            *,
+            family_members (
+              id,
+              name,
+              relationship,
+              date_of_birth,
+              gender
+            )
+          `)
+          .eq('email', userEmail)
+          .maybeSingle();
 
-      if (error) {
+        if (error) {
+          console.error('Error fetching profile:', error);
+          toast({
+            title: "Error fetching profile",
+            description: error.message,
+            variant: "destructive",
+          });
+          return null;
+        }
+
+        if (!data) {
+          console.log('No profile found for email:', userEmail);
+          toast({
+            title: "Profile not found",
+            description: "No member profile found for this email address.",
+            variant: "destructive",
+          });
+          return null;
+        }
+
+        console.log('Found profile:', data);
+        return data;
+      } catch (error) {
+        console.error('Error in profile fetch:', error);
         toast({
-          title: "Error fetching profile",
-          description: error.message,
+          title: "Error",
+          description: "An unexpected error occurred while fetching your profile.",
           variant: "destructive",
         });
-        throw error;
+        return null;
       }
-
-      return data;
-    },
-  });
-
-  // Fetch payment history
-  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
-    queryKey: ['member-payments'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payments')
-        .select('*')
-        .order('payment_date', { ascending: false });
-
-      if (error) {
-        toast({
-          title: "Error fetching payments",
-          description: error.message,
-          variant: "destructive",
-        });
-        throw error;
-      }
-
-      // Transform the data to match the Payment interface
-      return (data || []).map(payment => ({
-        date: payment.payment_date,
-        amount: payment.amount.toString(),
-        status: payment.status,
-        type: payment.payment_type
-      }));
     },
   });
 
@@ -85,7 +115,7 @@ export default function Profile() {
     { name: 'Proof of Address.pdf', uploadDate: '2024-02-15', type: 'Address Proof' },
   ];
 
-  if (memberLoading || paymentsLoading) {
+  if (memberLoading) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto p-6">
         <Skeleton className="h-8 w-64" />
@@ -99,14 +129,8 @@ export default function Profile() {
     );
   }
 
-  const filteredPayments = paymentsData?.filter(payment => {
-    const matchesDate = searchDate ? payment.date.includes(searchDate) : true;
-    const matchesAmount = searchAmount ? payment.amount.includes(searchAmount) : true;
-    return matchesDate && matchesAmount;
-  }) || [];
-
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto p-6">
       <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
         Member Profile
       </h1>
@@ -118,7 +142,7 @@ export default function Profile() {
           documentTypes={documentTypes}
         />
         <PaymentHistorySection 
-          payments={filteredPayments}
+          memberId={memberData?.id || ''}
           searchDate={searchDate}
           searchAmount={searchAmount}
           onSearchDateChange={setSearchDate}

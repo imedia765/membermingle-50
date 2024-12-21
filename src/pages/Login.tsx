@@ -26,14 +26,22 @@ export default function Login() {
       const isEmail = cleanIdentifier.includes('@') && !cleanIdentifier.includes('@temp.pwaburton.org');
       
       if (isEmail) {
-        // Check if member has updated their password
-        const { data: member } = await supabase
+        // Check if member exists and has updated their password
+        const { data: member, error: memberError } = await supabase
           .from('members')
           .select('password_changed, email_verified')
           .eq('email', cleanIdentifier)
-          .single();
+          .maybeSingle();
 
-        if (!member?.password_changed) {
+        if (memberError) {
+          throw memberError;
+        }
+
+        if (!member) {
+          throw new Error("No member found with this email address.");
+        }
+
+        if (!member.password_changed) {
           toast({
             title: "Password not updated",
             description: "Please use the 'First Time Login' button below if you haven't changed your password yet.",
@@ -57,9 +65,13 @@ export default function Login() {
           .from('members')
           .select('email, password_changed, member_number')
           .eq('member_number', cleanIdentifier)
-          .single();
+          .maybeSingle();
 
-        if (memberError || !member) {
+        if (memberError) {
+          throw memberError;
+        }
+
+        if (!member) {
           throw new Error("Invalid Member ID. Please check your credentials.");
         }
 

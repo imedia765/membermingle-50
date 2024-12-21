@@ -79,9 +79,12 @@ export default function Login() {
         const tempEmail = `${cleanIdentifier.toLowerCase()}@temp.pwaburton.org`;
         console.log("Attempting login with temp email:", tempEmail);
 
+        // For first time login, use member ID as password
+        const loginPassword = member.password_changed ? password : cleanIdentifier;
+
         const { error } = await supabase.auth.signInWithPassword({
           email: tempEmail,
-          password: cleanIdentifier // For first time login, password is the same as member ID
+          password: loginPassword
         });
 
         if (error) {

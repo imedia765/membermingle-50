@@ -26,73 +26,59 @@ export default function Login() {
       const isEmail = cleanIdentifier.includes('@') && !cleanIdentifier.includes('@temp.pwaburton.org');
       
       if (isEmail) {
-        // Check if member exists and has updated their password
+        // Email login flow
         const { data: member, error: memberError } = await supabase
           .from('members')
           .select('password_changed, email_verified')
           .eq('email', cleanIdentifier)
           .maybeSingle();
 
-        if (memberError) {
-          throw memberError;
-        }
-
-        if (!member) {
-          throw new Error("No member found with this email address.");
-        }
-
+        if (memberError) throw memberError;
+        if (!member) throw new Error("No member found with this email address.");
         if (!member.password_changed) {
           toast({
             title: "Password not updated",
             description: "Please use the 'First Time Login' button below if you haven't changed your password yet.",
             variant: "destructive",
           });
-          setIsLoading(false);
           return;
         }
 
-        // Regular email login
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email: cleanIdentifier,
-          password: password,
+          password,
         });
 
-        if (error) throw error;
+        if (signInError) throw signInError;
 
       } else {
-        // Member ID login - first check if member exists
+        // Member ID login flow
         const { data: member, error: memberError } = await supabase
           .from('members')
           .select('email, password_changed, member_number')
           .eq('member_number', cleanIdentifier)
           .maybeSingle();
 
-        if (memberError) {
-          throw memberError;
-        }
+        if (memberError) throw memberError;
+        if (!member) throw new Error("Invalid Member ID. Please check your credentials.");
 
-        if (!member) {
-          throw new Error("Invalid Member ID. Please check your credentials.");
-        }
-
-        // For member ID login, use temporary email format
         const tempEmail = `${cleanIdentifier.toLowerCase()}@temp.pwaburton.org`;
         console.log("Attempting login with temp email:", tempEmail);
 
         // For first time login, use member ID as password
         const loginPassword = member.password_changed ? password : cleanIdentifier;
 
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email: tempEmail,
-          password: loginPassword
+          password: loginPassword,
         });
 
-        if (error) {
-          console.error("Login error:", error);
-          if (error.message.includes('Invalid login credentials')) {
+        if (signInError) {
+          console.error("Sign in error:", signInError);
+          if (signInError.message.includes('Invalid login credentials')) {
             throw new Error("Invalid Member ID or password. For first-time login, use your Member ID as both username and password.");
           }
-          throw error;
+          throw signInError;
         }
       }
 

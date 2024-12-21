@@ -41,23 +41,46 @@ export const PasswordChangeForm = () => {
       }
 
       // Update the password
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { data: userData, error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
 
       if (updateError) throw updateError;
 
-      // Update the password_changed flag and phone number in members table
-      const { error: memberUpdateError } = await supabase
+      // Update the member record with the auth_user_id if not already set
+      const { data: memberData, error: memberError } = await supabase
         .from('members')
-        .update({ 
-          password_changed: true,
-          first_time_login: false,
-          phone: phoneNumber
-        })
-        .eq('email', session.user.email);
+        .select('id, auth_user_id')
+        .eq('email', session.user.email)
+        .maybeSingle();
 
-      if (memberUpdateError) throw memberUpdateError;
+      if (memberError) throw memberError;
+
+      if (memberData && !memberData.auth_user_id) {
+        const { error: linkError } = await supabase
+          .from('members')
+          .update({ 
+            auth_user_id: session.user.id,
+            password_changed: true,
+            first_time_login: false,
+            phone: phoneNumber
+          })
+          .eq('id', memberData.id);
+
+        if (linkError) throw linkError;
+      } else {
+        // Just update the other fields if auth_user_id is already set
+        const { error: updateMemberError } = await supabase
+          .from('members')
+          .update({ 
+            password_changed: true,
+            first_time_login: false,
+            phone: phoneNumber
+          })
+          .eq('email', session.user.email);
+
+        if (updateMemberError) throw updateMemberError;
+      }
 
       toast({
         title: "Profile updated",

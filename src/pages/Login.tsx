@@ -22,40 +22,42 @@ export default function Login() {
     console.log("Login attempt with:", { identifier: cleanIdentifier });
 
     try {
-      // Check if input is an email or member ID
       const isEmail = cleanIdentifier.includes('@') && !cleanIdentifier.includes('@temp.pwaburton.org');
       
       if (isEmail) {
         // Email login flow
         const { data: member, error: memberError } = await supabase
           .from('members')
-          .select('password_changed, email_verified')
+          .select('id, password_changed, email_verified')
           .eq('email', cleanIdentifier)
           .maybeSingle();
 
         if (memberError) throw memberError;
         if (!member) throw new Error("No member found with this email address.");
+        
         if (!member.password_changed) {
           toast({
             title: "Password not updated",
             description: "Please use the 'First Time Login' button below if you haven't changed your password yet.",
             variant: "destructive",
           });
+          setIsLoading(false);
           return;
         }
 
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email: cleanIdentifier,
           password,
         });
 
         if (signInError) throw signInError;
+        console.log("Email login successful:", data);
 
       } else {
         // Member ID login flow
         const { data: member, error: memberError } = await supabase
           .from('members')
-          .select('email, password_changed, member_number')
+          .select('id, email, password_changed, member_number')
           .eq('member_number', cleanIdentifier)
           .maybeSingle();
 
@@ -65,10 +67,16 @@ export default function Login() {
         const tempEmail = `${cleanIdentifier.toLowerCase()}@temp.pwaburton.org`;
         console.log("Attempting login with temp email:", tempEmail);
 
-        // For first time login, use member ID as password
-        const loginPassword = member.password_changed ? password : cleanIdentifier;
+        // For first-time login or if password hasn't been changed, use member ID as password
+        const shouldUseMemberIdAsPassword = !member.password_changed;
+        const loginPassword = shouldUseMemberIdAsPassword ? cleanIdentifier : password;
 
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        console.log("Login attempt details:", {
+          email: tempEmail,
+          isFirstTimeLogin: shouldUseMemberIdAsPassword,
+        });
+
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email: tempEmail,
           password: loginPassword,
         });
@@ -76,10 +84,16 @@ export default function Login() {
         if (signInError) {
           console.error("Sign in error:", signInError);
           if (signInError.message.includes('Invalid login credentials')) {
-            throw new Error("Invalid Member ID or password. For first-time login, use your Member ID as both username and password.");
+            throw new Error(
+              shouldUseMemberIdAsPassword 
+                ? "For first-time login, use your Member ID as both username and password."
+                : "Invalid Member ID or password. Please check your credentials."
+            );
           }
           throw signInError;
         }
+
+        console.log("Member ID login successful:", data);
       }
 
       toast({

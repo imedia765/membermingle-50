@@ -52,7 +52,7 @@ export default function Members() {
 
   const filteredMembers = data?.members?.filter(member => {
     if (showPending) {
-      return !member.member_number || member.member_number === '';
+      return !member.member_number || member.member_number === '' || member.status === 'pending';
     }
     return true;
   });
@@ -73,7 +73,7 @@ export default function Members() {
             onClick={() => setShowPending(!showPending)}
             className="ml-2"
           >
-            {showPending ? "Show All" : "Show Pending"}
+            {showPending ? "Show All" : "Show Pending Members"}
           </Button>
         </div>
           
@@ -111,7 +111,7 @@ export default function Members() {
                 ) : (
                   filteredMembers.map((member) => (
                     <TableRow key={member.id}>
-                      <TableCell>{member.member_number || 'Pending'}</TableCell>
+                      <TableCell>{member.member_number || 'Pending Assignment'}</TableCell>
                       <TableCell>{member.full_name}</TableCell>
                       <TableCell>{member.email || 'Not set'}</TableCell>
                       <TableCell>
@@ -123,10 +123,15 @@ export default function Members() {
                       </TableCell>
                       <TableCell>
                         <Badge 
-                          variant={member.status === 'active' ? "success" : 
-                                 member.status === 'suspended' ? "warning" : "destructive"}
+                          variant={
+                            member.status === 'active' ? "success" : 
+                            member.status === 'suspended' ? "destructive" :
+                            "secondary"
+                          }
                         >
-                          {member.status || 'Pending'}
+                          {!member.member_number ? 'Pending Assignment' : 
+                           member.status === 'pending' ? 'Pending Activation' :
+                           member.status || 'Unknown'}
                         </Badge>
                       </TableCell>
                       <TableCell>

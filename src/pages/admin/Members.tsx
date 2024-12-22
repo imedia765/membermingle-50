@@ -8,6 +8,7 @@ import { CoveredMembersOverview } from "@/components/members/CoveredMembersOverv
 import { MembersPagination } from "@/components/members/MembersPagination";
 import { useMembers } from "@/hooks/use-members";
 import { useToast } from "@/hooks/use-toast";
+import { UserManagementSection } from "@/components/database/UserManagementSection";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -46,61 +47,68 @@ export default function Members() {
   return (
     <div className="space-y-6">
       <MembersHeader />
-      <MembersSearch 
-        searchTerm={searchTerm} 
-        setSearchTerm={setSearchTerm} 
-        isLoading={isLoading}
-      />
       
-      {data?.members && (
-        <>
-          <div className="text-sm text-muted-foreground mb-2">
-            Total Members: {data.totalCount}
-          </div>
-          <CoveredMembersOverview members={data.members} />
-        </>
-      )}
-
-      <ScrollArea className="h-[calc(100vh-220px)]">
+      <div className="grid gap-6">
+        <UserManagementSection />
+        
         <div className="space-y-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <div className="text-muted-foreground">Loading members...</div>
-            </div>
-          ) : !data?.members ? (
-            <div className="flex items-center justify-center p-8">
-              <div className="text-muted-foreground">No data available</div>
-            </div>
-          ) : data.members.length === 0 ? (
-            <div className="flex items-center justify-center p-8">
-              <div className="text-muted-foreground">
-                {searchTerm ? "No members found matching your search" : "No members found"}
-              </div>
-            </div>
-          ) : (
+          <MembersSearch 
+            searchTerm={searchTerm} 
+            setSearchTerm={setSearchTerm} 
+            isLoading={isLoading}
+          />
+          
+          {data?.members && (
             <>
-              {data.members.map((member) => (
-                <MemberCard
-                  key={member.id}
-                  member={member}
-                  expandedMember={expandedMember}
-                  editingNotes={editingNotes}
-                  toggleMember={toggleMember}
-                  setEditingNotes={setEditingNotes}
-                  onUpdate={handleUpdate}
-                />
-              ))}
-              
-              <MembersPagination 
-                page={page}
-                totalPages={totalPages}
-                isLoading={isLoading}
-                setPage={setPage}
-              />
+              <div className="text-sm text-muted-foreground mb-2">
+                Total Members: {data.totalCount}
+              </div>
+              <CoveredMembersOverview members={data.members} />
             </>
           )}
+
+          <ScrollArea className="h-[calc(100vh-220px)]">
+            <div className="space-y-4">
+              {isLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="text-muted-foreground">Loading members...</div>
+                </div>
+              ) : !data?.members ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="text-muted-foreground">No data available</div>
+                </div>
+              ) : data.members.length === 0 ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="text-muted-foreground">
+                    {searchTerm ? "No members found matching your search" : "No members found"}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {data.members.map((member) => (
+                    <MemberCard
+                      key={member.id}
+                      member={member}
+                      expandedMember={expandedMember}
+                      editingNotes={editingNotes}
+                      toggleMember={toggleMember}
+                      setEditingNotes={setEditingNotes}
+                      onUpdate={handleUpdate}
+                    />
+                  ))}
+                  
+                  <MembersPagination 
+                    page={page}
+                    totalPages={totalPages}
+                    isLoading={isLoading}
+                    setPage={setPage}
+                  />
+                </>
+              )}
+            </div>
+          </ScrollArea>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

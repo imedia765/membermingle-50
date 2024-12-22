@@ -47,37 +47,27 @@ export const PasswordChangeForm = () => {
 
       if (updateError) throw updateError;
 
-      // Update the member record with the auth_user_id if not already set
+      // Update the member record
       const { data: memberData, error: memberError } = await supabase
         .from('members')
-        .select('id, auth_user_id')
+        .select('id')
         .eq('email', session.user.email)
         .maybeSingle();
 
       if (memberError) throw memberError;
 
-      if (memberData && !memberData.auth_user_id) {
-        const { error: linkError } = await supabase
+      if (memberData) {
+        const { error: updateMemberError } = await supabase
           .from('members')
           .update({ 
             auth_user_id: session.user.id,
             password_changed: true,
             first_time_login: false,
-            phone: phoneNumber
+            phone: phoneNumber,
+            profile_updated: true,
+            email_verified: true
           })
           .eq('id', memberData.id);
-
-        if (linkError) throw linkError;
-      } else {
-        // Just update the other fields if auth_user_id is already set
-        const { error: updateMemberError } = await supabase
-          .from('members')
-          .update({ 
-            password_changed: true,
-            first_time_login: false,
-            phone: phoneNumber
-          })
-          .eq('email', session.user.email);
 
         if (updateMemberError) throw updateMemberError;
       }

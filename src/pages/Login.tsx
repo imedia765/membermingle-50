@@ -19,18 +19,12 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     const cleanMemberId = memberId.toUpperCase().trim();
-    console.log("Login attempt with member ID:", cleanMemberId);
-
+    
     try {
-      // Validate password length
-      if (password.length < 6) {
-        throw new Error("Password must be at least 6 characters long");
-      }
-
-      // First, get the member details
+      // First, check if the member exists
       const { data: member, error: memberError } = await supabase
         .from('members')
-        .select('id, email, password_changed, member_number, default_password_hash')
+        .select('id, email, member_number, auth_user_id')
         .eq('member_number', cleanMemberId)
         .maybeSingle();
 
@@ -47,54 +41,52 @@ export default function Login() {
       const tempEmail = `${cleanMemberId.toLowerCase()}@temp.pwaburton.org`;
       console.log("Attempting login with temp email:", tempEmail);
 
-      // Try to sign in first
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      // Attempt to sign in
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: tempEmail,
         password: password,
       });
 
-      // If sign in fails with invalid credentials, try to sign up
-      if (signInError && signInError.message.includes('Invalid login credentials')) {
-        console.log("Sign in failed, attempting signup");
-        
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: tempEmail,
-          password: password,
-          options: {
-            data: {
-              member_number: cleanMemberId,
-            }
-          }
-        });
-
-        if (signUpError) {
-          console.error("Signup error:", signUpError);
-          if (signUpError.message.includes('weak_password')) {
-            throw new Error("Password must be at least 6 characters long");
-          }
-          throw new Error(signUpError.message);
-        }
-
-        if (!signUpData.user) {
-          throw new Error("Failed to create account");
-        }
-      } else if (signInError) {
+      if (signInError) {
         console.error("Sign in error:", signInError);
-        throw signInError;
-      }
+        
+        // If sign in fails, try to sign up (for first-time users)
+        if (signInError.message.includes('Invalid login credentials')) {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: tempEmail,
+            password: password,
+            options: {
+              data: {
+                member_number: cleanMemberId,
+              }
+            }
+          });
 
-      // Update member record with auth details if needed
-      if (member.id) {
-        const { error: updateError } = await supabase
-          .from('members')
-          .update({
-            email_verified: true,
-            profile_updated: true,
-          })
-          .eq('id', member.id);
+          if (signUpError) {
+            console.error("Signup error:", signUpError);
+            throw signUpError;
+          }
 
-        if (updateError) {
-          console.error("Error updating member:", updateError);
+          if (!signUpData.user) {
+            throw new Error("Failed to create account");
+          }
+
+          // Update member record with auth details
+          const { error: updateError } = await supabase
+            .from('members')
+            .update({
+              auth_user_id: signUpData.user.id,
+              email_verified: true,
+              profile_updated: true,
+            })
+            .eq('id', member.id);
+
+          if (updateError) {
+            console.error("Error updating member:", updateError);
+            throw updateError;
+          }
+        } else {
+          throw signInError;
         }
       }
 
@@ -103,16 +95,12 @@ export default function Login() {
         description: "Welcome back!",
       });
 
-      if (!member.password_changed) {
-        navigate("/change-password");
-      } else {
-        navigate("/admin/profile");
-      }
+      navigate("/admin/profile");
     } catch (error) {
       console.error("Login error:", error);
       toast({
         title: "Login failed",
-        description: error instanceof Error ? error.message : "Invalid credentials. Please check your Member ID and password.",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {

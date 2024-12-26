@@ -22,6 +22,11 @@ export default function Login() {
     console.log("Login attempt with member ID:", cleanMemberId);
 
     try {
+      // Validate password length
+      if (password.length < 6) {
+        throw new Error("Password must be at least 6 characters long");
+      }
+
       // First, get the member details
       const { data: member, error: memberError } = await supabase
         .from('members')
@@ -38,60 +43,53 @@ export default function Login() {
         throw new Error("Invalid Member ID. Please check your credentials.");
       }
 
+      // Generate temp email for authentication
       const tempEmail = `${cleanMemberId.toLowerCase()}@temp.pwaburton.org`;
       console.log("Attempting login with temp email:", tempEmail);
 
-      let authResponse;
+      // Try to sign in first
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: tempEmail,
+        password: password,
+      });
 
-      try {
-        // First attempt to sign in
-        authResponse = await supabase.auth.signInWithPassword({
+      // If sign in fails with invalid credentials, try to sign up
+      if (signInError && signInError.message.includes('Invalid login credentials')) {
+        console.log("Sign in failed, attempting signup");
+        
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: tempEmail,
           password: password,
+          options: {
+            data: {
+              member_number: cleanMemberId,
+            }
+          }
         });
 
-        if (authResponse.error) {
-          console.log("Sign in failed:", authResponse.error.message);
-          
-          // If login fails, try to sign up
-          if (authResponse.error.message.includes('Invalid login credentials')) {
-            console.log("Attempting signup for new user");
-            const signUpResponse = await supabase.auth.signUp({
-              email: tempEmail,
-              password: password,
-            });
-
-            if (signUpResponse.error && !signUpResponse.error.message.includes('User already registered')) {
-              throw signUpResponse.error;
-            }
-
-            // Try signing in again after signup
-            authResponse = await supabase.auth.signInWithPassword({
-              email: tempEmail,
-              password: password,
-            });
+        if (signUpError) {
+          console.error("Signup error:", signUpError);
+          if (signUpError.message.includes('weak_password')) {
+            throw new Error("Password must be at least 6 characters long");
           }
+          throw new Error(signUpError.message);
         }
-      } catch (authError) {
-        console.error("Authentication error:", authError);
-        throw new Error("Authentication failed. Please try again.");
+
+        if (!signUpData.user) {
+          throw new Error("Failed to create account");
+        }
+      } else if (signInError) {
+        console.error("Sign in error:", signInError);
+        throw signInError;
       }
 
-      if (authResponse.error || !authResponse.data?.user) {
-        console.error("Final auth error:", authResponse.error);
-        throw new Error("Authentication failed. Please check your credentials and try again.");
-      }
-
-      console.log("Login successful:", authResponse.data);
-
-      // Update auth_user_id if not set
-      if (authResponse.data.user && member.id) {
+      // Update member record with auth details if needed
+      if (member.id) {
         const { error: updateError } = await supabase
           .from('members')
-          .update({ 
-            auth_user_id: authResponse.data.user.id,
+          .update({
             email_verified: true,
-            profile_updated: true
+            profile_updated: true,
           })
           .eq('id', member.id);
 
@@ -104,7 +102,7 @@ export default function Login() {
         title: "Login successful",
         description: "Welcome back!",
       });
-      
+
       if (!member.password_changed) {
         navigate("/change-password");
       } else {
@@ -132,8 +130,8 @@ export default function Login() {
           <Alert className="bg-blue-50 border-blue-200">
             <InfoIcon className="h-4 w-4 text-blue-500" />
             <AlertDescription className="text-sm text-blue-700">
-              Enter your Member ID and password to login. If you haven't changed your password yet,
-              use your Member ID as both username and password.
+              Enter your Member ID and password to login. For new members,
+              use your Member ID as both username and password (minimum 6 characters).
             </AlertDescription>
           </Alert>
 
@@ -156,11 +154,12 @@ export default function Login() {
                 id="password"
                 name="password"
                 type="password"
-                placeholder="Password"
+                placeholder="Password (minimum 6 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
+                minLength={6}
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>

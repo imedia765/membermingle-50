@@ -21,10 +21,12 @@ export default function Login() {
     const cleanMemberId = memberId.toUpperCase().trim();
     
     try {
-      // First, check if the member exists
+      console.log("Starting login process for member:", cleanMemberId);
+      
+      // First check if member exists
       const { data: member, error: memberError } = await supabase
         .from('members')
-        .select('id, email, member_number, auth_user_id')
+        .select('id, email, member_number')
         .eq('member_number', cleanMemberId)
         .maybeSingle();
 
@@ -37,56 +39,54 @@ export default function Login() {
         throw new Error("Invalid Member ID. Please check your credentials.");
       }
 
+      // Clear any existing sessions
+      await supabase.auth.signOut();
+
       // Generate temp email for authentication
       const tempEmail = `${cleanMemberId.toLowerCase()}@temp.pwaburton.org`;
-      console.log("Attempting login with temp email:", tempEmail);
+      console.log("Attempting authentication with:", tempEmail);
 
-      // Attempt to sign in
+      // Attempt sign in
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: tempEmail,
         password: password,
       });
 
       if (signInError) {
-        console.error("Sign in error:", signInError);
+        console.error("Authentication error:", signInError);
         
-        // If sign in fails, try to sign up (for first-time users)
+        // For first-time users, attempt signup
         if (signInError.message.includes('Invalid login credentials')) {
+          console.log("First time login, attempting signup");
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: tempEmail,
             password: password,
-            options: {
-              data: {
-                member_number: cleanMemberId,
-              }
-            }
           });
 
           if (signUpError) {
             console.error("Signup error:", signUpError);
-            throw signUpError;
+            throw new Error("Failed to create account. Please try again.");
           }
 
           if (!signUpData.user) {
-            throw new Error("Failed to create account");
+            throw new Error("Account creation failed. Please try again.");
           }
 
-          // Update member record with auth details
+          // Update member record
           const { error: updateError } = await supabase
             .from('members')
             .update({
-              auth_user_id: signUpData.user.id,
               email_verified: true,
-              profile_updated: true,
+              first_time_login: true,
             })
             .eq('id', member.id);
 
           if (updateError) {
-            console.error("Error updating member:", updateError);
-            throw updateError;
+            console.error("Member update error:", updateError);
+            throw new Error("Failed to update member status");
           }
         } else {
-          throw signInError;
+          throw new Error("Invalid credentials. Please try again.");
         }
       }
 
@@ -97,7 +97,7 @@ export default function Login() {
 
       navigate("/admin/profile");
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Login process failed:", error);
       toast({
         title: "Login failed",
         description: error instanceof Error ? error.message : "An unexpected error occurred",
@@ -119,7 +119,7 @@ export default function Login() {
             <InfoIcon className="h-4 w-4 text-blue-500" />
             <AlertDescription className="text-sm text-blue-700">
               Enter your Member ID and password to login. For new members,
-              use your Member ID as both username and password (minimum 6 characters).
+              use your Member ID as both username and password.
             </AlertDescription>
           </Alert>
 
@@ -142,7 +142,7 @@ export default function Login() {
                 id="password"
                 name="password"
                 type="password"
-                placeholder="Password (minimum 6 characters)"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

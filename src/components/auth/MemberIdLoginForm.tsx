@@ -15,7 +15,6 @@ export const MemberIdLoginForm = ({ onSubmit, isLoading }: MemberIdLoginFormProp
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Ensure proper formatting: uppercase and trimmed
     const cleanMemberId = memberId.toUpperCase().trim();
     console.log("Login attempt with:", {
       memberId: cleanMemberId,

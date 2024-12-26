@@ -16,10 +16,6 @@ export const MemberIdLoginForm = ({ onSubmit, isLoading }: MemberIdLoginFormProp
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const cleanMemberId = memberId.toUpperCase().trim();
-    console.log("Login attempt with:", {
-      memberId: cleanMemberId,
-      passwordLength: password.length
-    });
     await onSubmit(cleanMemberId, password);
   };
 
@@ -43,7 +39,7 @@ export const MemberIdLoginForm = ({ onSubmit, isLoading }: MemberIdLoginFormProp
           onChange={(e) => setMemberId(e.target.value.toUpperCase().trim())}
           required
           disabled={isLoading}
-          className="uppercase bg-[#F1F0FB] border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+          className="uppercase"
         />
       </div>
       <div className="space-y-2">
@@ -51,7 +47,7 @@ export const MemberIdLoginForm = ({ onSubmit, isLoading }: MemberIdLoginFormProp
           id="memberPassword"
           name="memberPassword"
           type="password"
-          placeholder="Password (same as Member ID)"
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required

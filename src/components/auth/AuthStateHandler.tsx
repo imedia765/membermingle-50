@@ -17,7 +17,6 @@ export const useAuthStateHandler = (setIsLoggedIn: (value: boolean) => void) => 
         
         if (error) {
           console.error("Session check error:", error);
-          // Clear any stale session data
           await supabase.auth.signOut();
           setIsLoggedIn(false);
           return;
@@ -47,13 +46,11 @@ export const useAuthStateHandler = (setIsLoggedIn: (value: boolean) => void) => 
         }
       } catch (error) {
         console.error("Session check failed:", error);
-        // Clear any stale session data on error
         await supabase.auth.signOut();
         setIsLoggedIn(false);
       }
     };
 
-    // Initial session check
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
